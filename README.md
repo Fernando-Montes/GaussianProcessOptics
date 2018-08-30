@@ -1,1 +1,1 @@
-Gaussian process optimization to find maxium SECAR resolution
+Gaussian process optimization to find maximum SECAR resolution
