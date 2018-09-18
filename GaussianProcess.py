@@ -14,17 +14,32 @@ import multiprocessing
 import itertools
 import timeit
 
+from optparse import OptionParser
+
 # Function that runs cosy given field gradients and outputs resolution at FP3. 
 # Output is written in file temp-results
 from cosy import cosyrun 
 
+parser = OptionParser()
+parser.add_option("-P", "--usePI", action="store_true", dest="use_PI", default=False, help="use PI instead of EI")
+
+(options, args) = parser.parse_args()
+
 # Functions to display and save results 
 # from Figures import *
+start = int(sys.argv[1]) # flag to start from scratch (0) or to use previous data (1)
 
 # Hyper-parameter
-theta_nom = 0.004 # Kernel parameter
-eps = 0.02 # Acquisition function (probability/expectation of improvement) parameter
+theta_nom = float(sys.argv[3]) # Kernel parameter
+eps = float(sys.argv[4]) # Acquisition function (probability/expectation of improvement) parameter
+theta_i = sys.argv[5]
+
 num_points = 100000 # Number of points to sample
+
+if(options.use_PI):
+  prefix = str(theta_nom)+'_'+theta_i + '_'+str(eps) + '_PI_'
+else:
+  prefix = str(theta_nom) +'_'+theta_i +'_'+str(eps) + '_'
 
 # Nominal magnetic field values
 q1s_nom = -0.39773
@@ -135,14 +150,16 @@ def samplePS(num_points, fxmax) :
         kk = k(x[:,0], x_observed, theta) 
         mean = mu( kk, KInv, f_observed )[0,0]
         sigma = sig( kk, KInv )[0,0]
-        #PIx = PI(mean, fxmax, eps, sigma)
-        PIx = EI(mean, fxmax, eps, sigma)
+        if(options.use_PI):
+          PIx = PI(mean, fxmax, eps, sigma)
+        else:
+          PIx = EI(mean, fxmax, eps, sigma)
         #if j%50 == 0:
         #	print j
         if PIx > PImax:
             PImax = PIx
             xPImax = x
-    f = open('temp-sampling.txt','a') 	# Writing to sampling file best case
+    f = open(prefix+'temp-sampling.txt','a') 	# Writing to sampling file best case
     f.write( '{0: .6f} {1:.6f} {2:.6f} {3:.6f} {4:.6f} {5:.6f} {6:.6f} {7:.6f}\n' .format(xPImax[0,0], xPImax[1,0], xPImax[2,0], xPImax[3,0], xPImax[4,0], xPImax[5,0], xPImax[6,0], PImax) )
     return 0
 
@@ -155,10 +172,10 @@ startTime = timeit.default_timer()
 
 if start==0:
     # Removing files from older runs
-    cmd = 'rm -f results_resolution.txt'
+    cmd = 'rm -f '+prefix+'results_resolution.txt'
     failure, output = commands.getstatusoutput(cmd)
     # Removing files from older runs
-    cmd = 'rm -f observations_*.txt'
+    cmd = 'rm -f '+prefix+'observations_*.txt'
     failure, output = commands.getstatusoutput(cmd)
     # Starting point 
     #x_observed = np.asmatrix( [[q2s_nom*0.9], [q3s_nom*0.9], [q4s_nom*0.9], [q5s_nom*0.9], [q6s_nom*0.9], [q7s_nom*0.9]] )  #column
@@ -172,12 +189,23 @@ if start==0:
     eliminate = 0
 else:
     x_observed = np.asmatrix(np.loadtxt('observations_x_observed.txt'))
-    f_observed = np.asmatrix(np.loadtxt('observations_f_observed.txt'))
-    theta =      np.asmatrix(np.loadtxt('observations_theta.txt'))
+#    f_observed = np.asmatrix(np.loadtxt('observations_f_observed.txt'))
+#    theta =      np.asmatrix(np.loadtxt('observations_theta.txt'))
+    x_observed = np.transpose(x_observed)
     N =np.shape(x_observed)[1]
     startN = N-1
-    fxmax = np.max(f_observed)
-    imaxf = np.argmax(np.transpose(f_observed))
+    startN = 0
+    print(x_observed[0,0])
+    print(x_observed[1,0])
+#    fxmax = np.max(f_observed)
+#    imaxf = np.argmax(np.transpose(f_observed))
+    f_observed = np.asmatrix( [[]] )  #column
+    theta      = np.asmatrix( [[]] )  #column
+    startN = 0
+    newdistPoints = 0
+    num_observations = 1
+    fxmax = 0
+    eliminate = 0
 
 if __name__ == "__main__":
     for i in range(startN,startN+num_steps):
@@ -193,12 +221,12 @@ if __name__ == "__main__":
             q6s = x_observed[5,num_observations-1]
             q7s = x_observed[6,num_observations-1]
 
-            cosyrun( q1s, q2s, q3s, q4s, q5s, q6s, q7s )  # Running cosy calculation
+            cosyrun( q1s, q2s, q3s, q4s, q5s, q6s, q7s, prefix )  # Running cosy calculation
             print('time (sec) after cosy: %f' % (timeit.default_timer() - startTime))  
-            f = open('temp-results','r')  # Opening temp file with results
+            f = open(prefix+'temp-results','r')  # Opening temp file with results
             resol = f.readline()
             f.close()
-            f = open('results_resolution.txt','a') 	# Writing results file: q2s, resolution
+            f = open(prefix+'results_resolution.txt','a') 	# Writing results file: q2s, resolution
             f_observed = np.concatenate((f_observed, [[float(resol)/1000]]), axis=1) 
             theta      = np.concatenate((theta,      [[theta_nom]]),         axis=1) 
             if float(resol)/1000 > fxmax:
@@ -207,9 +235,9 @@ if __name__ == "__main__":
             f.write( '{0:d} {1:.6f} {2:.6f} {3:.6f} {4:.6f} {5:.6f} {6:.6f} {7:.6f} {8:.6f} {9:.3f} {10:.4f} {11:d}\n' .format(i, q1s, q2s, q3s, q4s, q5s, q6s, q7s, float(resol), fxmax, newdistPoints, eliminate) )
             f.close()
             # Save observation matrices
-            np.savetxt('observations_x_observed.txt', x_observed)
-            np.savetxt('observations_f_observed.txt', f_observed)
-            np.savetxt('observations_theta.txt', theta)
+            np.savetxt(prefix+'observations_x_observed.txt', x_observed)
+            np.savetxt(prefix+'observations_f_observed.txt', f_observed)
+            np.savetxt(prefix+'observations_theta.txt', theta)
 	
         f_observed = np.transpose(f_observed)  # transform to column 
         theta =      np.transpose(theta)  # transform to column 
@@ -219,7 +247,7 @@ if __name__ == "__main__":
         print('time (sec) after covariance: %f' % (timeit.default_timer() - startTime))  
 
         # Removing sampling file from previous step
-        cmd = 'rm -f temp-sampling.txt'
+        cmd = 'rm -f '+prefix+'temp-sampling.txt'
         failure, output = commands.getstatusoutput(cmd)
         try: 
             pool = multiprocessing.Pool()  # Take as many processes as possible			
@@ -231,7 +259,7 @@ if __name__ == "__main__":
             pool.apply_async( samplePS, [250,fxmax] )
         pool.close()
         pool.join()
-        reader = np.asmatrix(np.loadtxt('temp-sampling.txt'))
+        reader = np.asmatrix(np.loadtxt(prefix+'temp-sampling.txt'))
         x = np.transpose(np.asmatrix( reader[ np.argmax([ x[:,7] for x in reader] ), [0,1,2,3,4,5,6]] ))
         print('time (sec) after sampling: %f' % (timeit.default_timer() - startTime))  
 	
@@ -245,6 +273,8 @@ if __name__ == "__main__":
         theta =      np.transpose(theta)  # transform to row 
 
 print ('Final time (sec): %f' % (timeit.default_timer() - startTime))
+cmd = 'mv '+prefix+'* outputs/'
+failure, output = commands.getstatusoutput(cmd)
 
 #evolution( x_observed[:,0:-1], f_observed, startN+num_steps ) # Plots and saves resolution and magnetic fields as a function of iteration
 

@@ -8,10 +8,10 @@ import re
 
 # Function that runs cosy given field gradients and outputs resolution at FP3. 
 # Output is written in file temp-results
-def cosyrun(q1s, q2s, q3s, q4s, q5s, q6s, q7s ):
+def cosyrun(q1s, q2s, q3s, q4s, q5s, q6s, q7s , prefix):
     
     # creating input file
-    f = open('simpleOptimization.fox','w')
+    f = open(prefix+'simpleOptimization.fox','w')
     
     f.write('INCLUDE \'COSY\';\n')
     f.write('PROCEDURE RUN ;\n')
@@ -560,7 +560,8 @@ def cosyrun(q1s, q2s, q3s, q4s, q5s, q6s, q7s ):
     #f.write('WRITE 6 \'Resol.by max.ray =\' ABS(ME(1,7))/(2*WV);\n')
     #f.write('WRITE 6 \'ME(1,1),ME(1,2),ME(1,6),ME(1,7)=\' ME(1,1) ME(1,2) ME(1,6) ME(1,7);\n')
     #f.write('WRITE 6 \'M11*M22=\' ME(1,1)*ME(2,2);\n')
-    f.write('OPENF 99 \'temp-results\' \'NEW\';\n')
+    cmd = 'OPENF 99 \''+prefix+'temp-results\' \'NEW\';\n'
+    f.write(cmd)
     f.write('WRITE 99 ABS(ME(1,7))/(2*WV);  \n')
     f.write('\n')
     f.write('ENDPROCEDURE ;\n')
@@ -569,12 +570,12 @@ def cosyrun(q1s, q2s, q3s, q4s, q5s, q6s, q7s ):
     f.close()
     
     #Removing files from older runs
-    cmd = 'rm -f temp-results'		
+    cmd = 'rm -f '+prefix+'temp-results'		
     failure, output = commands.getstatusoutput(cmd)
     
     #Run file
     print('start cosy simulation')
-    cmd = './cosy simpleOptimization.fox'
+    cmd = './cosy '+prefix+'simpleOptimization.fox'
     failure, output = commands.getstatusoutput(cmd)
     
     return 0
