@@ -250,7 +250,8 @@ if __name__ == "__main__":
         cmd = 'rm -f '+prefix+'temp-sampling.txt'
         failure, output = commands.getstatusoutput(cmd)
         try: 
-            pool = multiprocessing.Pool()  # Take as many processes as possible			
+#            pool = multiprocessing.Pool(1)  # Take as many processes as possible			
+            pool = multiprocessing.Pool(20)  # Take as many processes as possible			
         except: 
             for c in multiprocessing.active_children():
                 os.kill(c.pid, signal.SIGKILL)

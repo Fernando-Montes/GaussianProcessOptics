@@ -561,6 +561,7 @@ def cosyrun(q1s, q2s, q3s, q4s, q5s, q6s, q7s , prefix):
     #f.write('WRITE 6 \'ME(1,1),ME(1,2),ME(1,6),ME(1,7)=\' ME(1,1) ME(1,2) ME(1,6) ME(1,7);\n')
     #f.write('WRITE 6 \'M11*M22=\' ME(1,1)*ME(2,2);\n')
     cmd = 'OPENF 99 \''+prefix+'temp-results\' \'NEW\';\n'
+    print(cmd)
     f.write(cmd)
     f.write('WRITE 99 ABS(ME(1,7))/(2*WV);  \n')
     f.write('\n')
@@ -572,11 +573,12 @@ def cosyrun(q1s, q2s, q3s, q4s, q5s, q6s, q7s , prefix):
     #Removing files from older runs
     cmd = 'rm -f '+prefix+'temp-results'		
     failure, output = commands.getstatusoutput(cmd)
-    
+    print(failure, output)    
     #Run file
     print('start cosy simulation')
     cmd = './cosy '+prefix+'simpleOptimization.fox'
     failure, output = commands.getstatusoutput(cmd)
+    print(failure, output)    
     
     return 0
     
